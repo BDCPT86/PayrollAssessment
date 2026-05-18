@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payroll Administrator Assessment</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/main.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+
+<!-- Pause Overlay -->
+<div class="pause-overlay" id="pause-overlay">
+  <h2>Assessment Paused</h2>
+  <p>Your progress is saved. Your timer has stopped.<br>Click Resume when you are ready to continue.</p>
+  <div class="pause-clock" id="pause-clock-display">--:--</div>
+  <div class="pause-clock-label">Time Remaining</div>
+  <div class="pause-divider"></div>
+  <button class="btn btn-gold btn-lg" onclick="resumeTest()">&#9654; Resume Assessment</button>
+</div>
+
+<!-- Top Bar -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="topbar-logo">PA</div>
+    <div class="topbar-title">Payroll Administrator Assessment</div>
+  </div>
+  <div class="topbar-right">
+    <span class="candidate-badge" id="candidate-badge-display" style="display:none">
+      <strong id="badge-name"></strong>
+    </span>
+    <button class="btn btn-sm btn-outline" id="btn-pause"
+      style="display:none;color:rgba(255,255,255,.8);border-color:rgba(255,255,255,.3);"
+      onclick="pauseTest()">&#9646;&#9646; Pause</button>
+    <div id="timer-display" style="display:none">90:00</div>
+  </div>
+</div>
+
+<!-- Progress Bar -->
+<div class="progress-bar-outer">
+  <div class="progress-bar-inner" id="progress-bar"></div>
+</div>
+
+<!-- Section Nav -->
+<div class="section-nav" id="section-nav" style="display:none">
+  <div class="section-tab active">A &middot; General Knowledge</div>
+  <div class="section-tab">B &middot; Calculations</div>
+  <div class="section-tab">C &middot; Labour Law</div>
+  <div class="section-tab">D &middot; Scenarios</div>
+  <div class="section-tab">E &middot; Excel &amp; Systems</div>
+  <div class="section-tab">&#9733; Bonus</div>
+</div>
+
+<!-- Main -->
+<div class="main-wrap">
+
+  <!-- Registration -->
+  <div class="screen active" id="screen-reg">
+    <div class="reg-header">
+      <h1>Payroll Administrator<br>Assessment Test</h1>
+      <p>Please verify your invite token before beginning.</p>
+    </div>
+
+    <!-- Token verification panel -->
+    <div id="token-check-panel">
+      <div class="info-card">
+        <h3>Invite Token</h3>
+        <div class="form-group">
+          <label>Your Invite Token <span class="required-star">*</span></label>
+          <input type="text" id="reg-token"
+            placeholder="Paste your invite token here"
+            oninput="clearTokenStatus()"
+            autocomplete="off"
+            style="font-family:var(--font-mono);letter-spacing:.5px;">
+          <div class="token-hint">You should have received this link or token from the hiring team.</div>
+        </div>
+        <div id="token-status" style="margin-top:10px;font-size:13px;display:none;padding:10px 14px;border-radius:7px;"></div>
+        <button class="btn btn-primary" onclick="validateToken()" id="btn-validate" style="margin-top:12px;">
+          Verify Token
+        </button>
+      </div>
+    </div>
+
+    <!-- Shown after token is validated -->
+    <div id="reg-details-panel" style="display:none;">
+
+      <div class="info-card">
+        <h3>Assessment Overview</h3>
+        <div class="info-grid">
+          <div class="info-stat"><div class="num">23</div><div class="lbl">Questions</div></div>
+          <div class="info-stat"><div class="num">90</div><div class="lbl">Minutes</div></div>
+          <div class="info-stat"><div class="num">70</div><div class="lbl">Total Marks</div></div>
+        </div>
+        <p style="margin-top:16px;font-size:13.5px;color:var(--muted);line-height:1.7;">
+          The assessment covers five sections: General Knowledge, Payroll Calculations, Labour Law &amp; Compliance,
+          Scenario-Based Questions, and Excel &amp; Systems Knowledge, plus 3 optional Bonus questions worth an additional 10 marks.
+        </p>
+      </div>
+
+      <div class="info-card">
+        <h3>Your Details</h3>
+        <div class="reg-meta-grid">
+          <div class="form-group">
+            <label>Full Name <span class="required-star">*</span></label>
+            <input type="text" id="reg-name" placeholder="e.g. Jane Smith" autocomplete="name">
+          </div>
+          <div class="form-group">
+            <label>Email Address <span class="required-star">*</span></label>
+            <input type="email" id="reg-email" autocomplete="email">
+            <div class="email-locked-badge" id="email-locked-badge" style="display:none;">&#128274; Set by invite</div>
+          </div>
+          <div class="form-group">
+            <label>Date</label>
+            <input type="text" id="reg-date" readonly>
+          </div>
+          <div class="form-group">
+            <label>Position Applied For</label>
+            <input type="text" id="reg-position" placeholder="e.g. Payroll Administrator">
+          </div>
+          <div class="form-group full">
+            <label>Current / Previous Employer <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+            <input type="text" id="reg-employer" placeholder="e.g. ABC Company">
+          </div>
+        </div>
+        <div id="reg-error" style="font-size:13px;color:var(--red);display:none;margin-bottom:10px;"></div>
+        <button class="btn btn-gold btn-lg" onclick="startTest()" id="btn-start">
+          Begin Assessment &rarr;
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Section -->
+  <div class="screen" id="screen-section"></div>
+
+  <!-- Completion -->
+  <div class="screen" id="screen-complete">
+    <div class="completion-card">
+      <div class="completion-icon" id="complete-icon">&#8987;</div>
+      <h2 id="complete-heading">Saving your assessment&hellip;</h2>
+      <p id="complete-sub" style="color:var(--muted);max-width:400px;margin:0 auto 24px;">
+        Please wait while your responses are being submitted.
+      </p>
+      <div class="completion-steps">
+        <div class="completion-step" id="step-save">
+          <div class="step-icon">&#128190;</div>
+          <div class="step-body"><h4>Saving responses</h4><p>Connecting&hellip;</p></div>
+        </div>
+        <div class="completion-step" id="step-confirm">
+          <div class="step-icon">&#9989;</div>
+          <div class="step-body"><h4>Submission confirmed</h4><p>Waiting&hellip;</p></div>
+        </div>
+      </div>
+      <div class="pdf-generating" id="saving-spinner" style="display:flex;margin-top:8px;">
+        <div class="spinner"></div>
+        <span>Saving to database&hellip;</span>
+      </div>
+      <div id="complete-actions" style="margin-top:20px;display:none;flex-direction:column;align-items:center;gap:10px;">
+        <button class="btn btn-gold" onclick="downloadMyPDF()">&#8659; Download my answer sheet (PDF)</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Scripts — memo.js is NOT included here -->
+<script src="js/config.js"></script>
+<script src="js/questions.js"></script>
+<script src="js/pdf.js"></script>
+<script src="js/assessment.js"></script>
+
+</body>
+</html>

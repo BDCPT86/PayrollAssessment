@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Assessment Reviewer Portal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/reviewer.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+
+<!-- Auth Gate -->
+<div class="pw-gate" id="auth-gate">
+  <div class="pw-box" id="auth-box">
+    <div class="logo-wrap">PA</div>
+    <h2>Reviewer Portal</h2>
+    <p>Sign in with your reviewer account to access submissions and manage invites.</p>
+    <div class="form-group" style="text-align:left;">
+      <label>Email Address</label>
+      <input type="email" id="auth-email" placeholder="reviewer@company.co.za" autocomplete="email">
+    </div>
+    <div class="form-group" style="text-align:left;margin-bottom:6px;">
+      <label>Password</label>
+      <input type="password" id="auth-password" placeholder="Password" autocomplete="current-password">
+    </div>
+    <div id="auth-error" style="font-size:13px;color:var(--red);min-height:20px;margin-bottom:10px;display:none;"></div>
+    <div id="auth-loading" style="font-size:13px;color:var(--muted);min-height:20px;margin-bottom:10px;display:none;">
+      Signing in&hellip;
+    </div>
+    <button class="btn btn-primary btn-lg" style="width:100%" id="btn-signin" onclick="signIn()">
+      Sign In &rarr;
+    </button>
+    <p style="font-size:12px;color:var(--muted);margin-top:16px;line-height:1.6;">
+      Don't have an account? Ask your Supabase admin to invite you via<br>
+      <strong>Dashboard &rarr; Authentication &rarr; Users &rarr; Invite User</strong>
+    </p>
+  </div>
+</div>
+
+<!-- Reviewer Top Bar -->
+<div class="review-topbar" id="review-topbar" style="display:none;">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <span class="review-tag">Reviewer</span>
+    <span id="review-candidate-name-top" style="font-size:14px;"></span>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;">
+    <span id="review-live-score" style="font-family:var(--font-mono);font-size:14px;"></span>
+    <button class="btn btn-sm btn-outline" id="btn-back"
+      style="color:rgba(255,255,255,.7);border-color:rgba(255,255,255,.25);display:none"
+      onclick="backToList()">&#8592; Back</button>
+    <button class="btn btn-sm btn-outline" id="btn-pdf"
+      style="color:var(--gold2);border-color:var(--gold);display:none"
+      onclick="downloadReviewPDF()">&#8659; PDF Report</button>
+    <button class="btn btn-sm btn-outline"
+      style="color:rgba(255,255,255,.5);border-color:rgba(255,255,255,.2)"
+      onclick="signOut()" title="Sign out">Sign Out</button>
+  </div>
+</div>
+
+<!-- Main Content -->
+<div class="reviewer-wrap" id="reviewer-wrap" style="display:none;">
+
+  <!-- Tab Nav -->
+  <div class="reviewer-tabs">
+    <div class="reviewer-tab active" onclick="showTab('submissions')">Submissions</div>
+    <div class="reviewer-tab" onclick="showTab('invites')">Invites</div>
+  </div>
+
+  <!-- SUBMISSIONS VIEW -->
+  <div class="view" id="view-submissions">
+    <div class="sub-list-header">
+      <div>
+        <h2>Submissions</h2>
+        <p>Select a candidate to review their answers against the memorandum.</p>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <span class="sub-count-badge" id="sub-count"></span>
+        <button class="btn btn-outline btn-sm" onclick="loadSubmissions()">&#8635; Refresh</button>
+      </div>
+    </div>
+    <div class="state-loading" id="sub-loading">
+      <div class="spinner" style="width:28px;height:28px;margin:0 auto 12px;"></div>
+      Loading submissions&hellip;
+    </div>
+    <div class="state-empty" id="sub-empty" style="display:none;">
+      <div class="emoji">&#128253;</div><p>No submissions yet.</p>
+    </div>
+    <div id="sub-error" style="display:none;color:var(--red);padding:24px;text-align:center;"></div>
+    <div id="submissions-list" style="display:none;"></div>
+  </div>
+
+  <!-- REVIEW DETAIL VIEW -->
+  <div class="view" id="view-review" style="display:none;">
+    <div class="review-candidate-info" id="review-cand-info"></div>
+    <div class="score-summary">
+      <div>
+        <h3>Score Summary</h3>
+        <p>Award marks below &mdash; totals update in real time.</p>
+      </div>
+      <div class="total-score-display">
+        <div>
+          <span class="score-val" id="total-score-val">0</span>
+          <span class="score-denom"> / <span id="total-score-max">70</span></span>
+        </div>
+        <div class="score-pct" id="total-score-pct">0%</div>
+      </div>
+    </div>
+    <div class="section-scores-grid" id="section-scores-grid"></div>
+    <div id="review-questions-container"></div>
+    <div style="margin-top:32px;">
+      <div class="form-group">
+        <label>Overall Reviewer Notes</label>
+        <textarea id="reviewer-overall-notes"
+          placeholder="Overall assessment, observations, recommendation&hellip;"
+          style="min-height:120px;"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- INVITES VIEW -->
+  <div class="view" id="view-invites" style="display:none;">
+
+    <div class="invite-create-card">
+      <h3>Create New Invite</h3>
+      <div class="invite-form-row">
+        <div class="form-group" style="margin-bottom:0">
+          <label>Candidate Name</label>
+          <input type="text" id="invite-name" placeholder="Jane Smith">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>Candidate Email <span class="required-star">*</span></label>
+          <input type="email" id="invite-email" placeholder="jane@example.com">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>Note <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+          <input type="text" id="invite-note" placeholder="e.g. Referred by HR">
+        </div>
+        <button class="btn btn-gold" onclick="createInvite()" id="btn-create-invite"
+          style="white-space:nowrap;align-self:flex-end;">
+          + Create Invite
+        </button>
+      </div>
+      <div id="invite-result" style="display:none;margin-top:16px;">
+        <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:6px;">
+          Invite created &mdash; copy this link and send it to the candidate:
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <div class="invite-url-box" id="invite-url-display" style="flex:1;min-width:0;"></div>
+          <button class="btn btn-outline btn-sm" onclick="copyInviteUrl()" style="white-space:nowrap;">
+            Copy Link <span class="copied-flash" id="copied-flash">Copied!</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sub-list-header" style="margin-bottom:16px;">
+      <div><h2 style="font-size:20px;">All Invites</h2></div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <span class="sub-count-badge" id="invite-count"></span>
+        <button class="btn btn-outline btn-sm" onclick="loadInvites()">&#8635; Refresh</button>
+      </div>
+    </div>
+    <div id="invite-loading" style="text-align:center;padding:32px;color:var(--muted);">
+      <div class="spinner" style="width:22px;height:22px;margin:0 auto 10px;"></div>Loading&hellip;
+    </div>
+    <div id="invite-empty" style="display:none;text-align:center;padding:32px;color:var(--muted);">No invites yet.</div>
+    <div id="invites-list"></div>
+
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Scripts — memo.js loaded ONLY here -->
+<script src="js/config.js"></script>
+<script src="js/questions.js"></script>
+<script src="js/memo.js"></script>
+<script src="js/pdf.js"></script>
+<script src="js/reviewer.js"></script>
+
+</body>
+</html>
