@@ -12,16 +12,97 @@ const reviewer = {
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  // Keyboard shortcut on auth form
   ['auth-email','auth-password'].forEach(id => {
     document.getElementById(id)?.addEventListener('keydown', e => {
       if (e.key === 'Enter') signIn();
     });
   });
+  ['new-password','confirm-password'].forEach(id => {
+    document.getElementById(id)?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') setPassword();
+    });
+  });
 
-  // Restore session from localStorage if it exists
-  tryRestoreSession();
+  // ── Handle invite / password-reset callback from Supabase email link ────────
+  // Supabase redirects to [site_url]#access_token=xxx&type=invite (or recovery)
+  const hash        = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  const accessToken = hash.get('access_token');
+  const refreshToken= hash.get('refresh_token');
+  const type        = hash.get('type');
+
+  if (accessToken && (type === 'invite' || type === 'recovery')) {
+    // Clear tokens from URL bar so they can't be copy-pasted
+    window.history.replaceState(null, '', window.location.pathname);
+    showSetPasswordForm(accessToken, refreshToken, type);
+  } else {
+    tryRestoreSession();
+  }
 });
+
+// ─── Set password (invite / password reset callback) ─────────────────────────
+let _pendingSession = null;
+
+function showSetPasswordForm(accessToken, refreshToken, type) {
+  _pendingSession = { accessToken, refreshToken };
+  if (type === 'recovery') {
+    document.getElementById('set-pw-heading').textContent = 'Reset Your Password';
+    document.getElementById('set-pw-sub').textContent     = 'Enter a new password for your reviewer account.';
+  }
+  document.getElementById('auth-gate').style.display   = 'none';
+  document.getElementById('set-pw-gate').style.display = 'flex';
+  setTimeout(() => document.getElementById('new-password').focus(), 100);
+}
+
+async function setPassword() {
+  const pw1   = document.getElementById('new-password').value;
+  const pw2   = document.getElementById('confirm-password').value;
+  const errEl = document.getElementById('set-pw-error');
+  const btn   = document.getElementById('btn-set-pw');
+
+  errEl.style.display = 'none';
+
+  if (pw1.length < 8) {
+    errEl.textContent = 'Password must be at least 8 characters.';
+    errEl.style.display = 'block'; return;
+  }
+  if (pw1 !== pw2) {
+    errEl.textContent = 'Passwords do not match.';
+    errEl.style.display = 'block'; return;
+  }
+
+  btn.textContent = 'Setting password…'; btn.disabled = true;
+
+  try {
+    const res = await fetch(`${CONFIG.supabaseUrl}/auth/v1/user`, {
+      method:  'PUT',
+      headers: {
+        'apikey':        CONFIG.supabaseAnon,
+        'Authorization': `Bearer ${_pendingSession.accessToken}`,
+        'Content-Type':  'application/json',
+      },
+      body: JSON.stringify({ password: pw1 }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || 'Failed to set password');
+    }
+
+    // Save the session tokens we already have (no need to sign in again)
+    saveSession(
+      { access_token: _pendingSession.accessToken, refresh_token: _pendingSession.refreshToken, expires_in: 3600 },
+      null
+    );
+    document.getElementById('set-pw-gate').style.display = 'none';
+    showPortal();
+    showToast('Password set — welcome to the Reviewer Portal.', 'success');
+
+  } catch (e) {
+    errEl.textContent   = e.message;
+    errEl.style.display = 'block';
+    btn.textContent = 'Set Password & Sign In →'; btn.disabled = false;
+  }
+}
 
 // ─── Auth: sign in ────────────────────────────────────────────────────────────
 async function signIn() {
@@ -168,28 +249,29 @@ async function authFetch(url, options = {}) {
 
 // ─── UI: show / hide portal ───────────────────────────────────────────────────
 function showPortal() {
-  document.getElementById('auth-gate').style.display    = 'none';
-  document.getElementById('review-topbar').style.display = 'flex';
-  document.getElementById('reviewer-wrap').style.display = 'block';
+  document.getElementById('auth-gate').style.display      = 'none';
+  document.getElementById('review-topbar').style.display  = 'flex';
+  document.getElementById('reviewer-tab-nav').style.display = 'block';
+  document.getElementById('reviewer-wrap').style.display  = 'block';
   showTab('submissions');
 }
 
 function showAuthGate() {
   clearSession();
-  document.getElementById('auth-gate').style.display    = 'flex';
-  document.getElementById('review-topbar').style.display = 'none';
-  document.getElementById('reviewer-wrap').style.display = 'none';
-  document.getElementById('auth-error').style.display   = 'none';
-  document.getElementById('auth-loading').style.display = 'none';
-  document.getElementById('btn-signin').disabled        = false;
+  document.getElementById('auth-gate').style.display         = 'flex';
+  document.getElementById('review-topbar').style.display     = 'none';
+  document.getElementById('reviewer-tab-nav').style.display  = 'none';
+  document.getElementById('reviewer-wrap').style.display     = 'none';
+  document.getElementById('auth-error').style.display        = 'none';
+  document.getElementById('auth-loading').style.display      = 'none';
+  document.getElementById('btn-signin').disabled             = false;
   document.getElementById('auth-email').focus();
 }
 
 // ─── Tab navigation ───────────────────────────────────────────────────────────
 function showTab(tab) {
-  document.querySelectorAll('.reviewer-tab').forEach((el, i) => {
-    el.classList.toggle('active', ['submissions','invites'][i] === tab);
-  });
+  document.getElementById('tab-btn-submissions').classList.toggle('active', tab === 'submissions');
+  document.getElementById('tab-btn-invites').classList.toggle('active', tab === 'invites');
 
   document.getElementById('view-submissions').style.display = 'none';
   document.getElementById('view-review').style.display      = 'none';

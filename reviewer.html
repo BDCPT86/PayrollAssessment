@@ -39,6 +39,27 @@
   </div>
 </div>
 
+<!-- Set Password Gate (shown when accepting an invite or resetting password) -->
+<div class="pw-gate" id="set-pw-gate" style="display:none;">
+  <div class="pw-box">
+    <div class="logo-wrap">PA</div>
+    <h2 id="set-pw-heading">Set Your Password</h2>
+    <p id="set-pw-sub">Choose a password for your reviewer account.</p>
+    <div class="form-group" style="text-align:left;">
+      <label>New Password</label>
+      <input type="password" id="new-password" placeholder="At least 8 characters" autocomplete="new-password">
+    </div>
+    <div class="form-group" style="text-align:left;margin-bottom:6px;">
+      <label>Confirm Password</label>
+      <input type="password" id="confirm-password" placeholder="Confirm password" autocomplete="new-password">
+    </div>
+    <div id="set-pw-error" style="font-size:13px;color:var(--red);min-height:20px;margin-bottom:10px;display:none;"></div>
+    <button class="btn btn-gold btn-lg" style="width:100%" id="btn-set-pw" onclick="setPassword()">
+      Set Password &amp; Sign In &rarr;
+    </button>
+  </div>
+</div>
+
 <!-- Reviewer Top Bar -->
 <div class="review-topbar" id="review-topbar" style="display:none;">
   <div style="display:flex;align-items:center;gap:14px;">
@@ -59,14 +80,20 @@
   </div>
 </div>
 
+<!-- Tab Nav — sits below topbar, outside the content wrap -->
+<div class="reviewer-tab-nav" id="reviewer-tab-nav" style="display:none;">
+  <div class="reviewer-tab-inner">
+    <button class="rev-tab active" id="tab-btn-submissions" onclick="showTab('submissions')">
+      Submissions
+    </button>
+    <button class="rev-tab" id="tab-btn-invites" onclick="showTab('invites')">
+      Invites
+    </button>
+  </div>
+</div>
+
 <!-- Main Content -->
 <div class="reviewer-wrap" id="reviewer-wrap" style="display:none;">
-
-  <!-- Tab Nav -->
-  <div class="reviewer-tabs">
-    <div class="reviewer-tab active" onclick="showTab('submissions')">Submissions</div>
-    <div class="reviewer-tab" onclick="showTab('invites')">Invites</div>
-  </div>
 
   <!-- SUBMISSIONS VIEW -->
   <div class="view" id="view-submissions">
