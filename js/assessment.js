@@ -179,14 +179,14 @@ function pauseTest() {
   state.timerInterval = null;
   saveProgress();
   updatePauseClock();
-  document.getElementById('pause-overlay').classList.add('active');
+  document.getElementById('pause-overlay').style.display = 'flex';
   showToast('Assessment paused. Your progress is saved.', '');
 }
 
 function resumeTest() {
   if (!state.paused) return;
   state.paused = false;
-  document.getElementById('pause-overlay').classList.remove('active');
+  document.getElementById('pause-overlay').style.display = 'none';
   saveProgress();
   startTimer();
   showToast('Assessment resumed.', 'success');
@@ -348,7 +348,7 @@ function submitAssessment() {
   document.getElementById('timer-display').style.display   = 'none';
   document.getElementById('btn-pause').style.display       = 'none';
   document.getElementById('section-nav').style.display     = 'none';
-  document.getElementById('pause-overlay').classList.remove('active');
+  document.getElementById('pause-overlay').style.display   = 'none';
   document.getElementById('progress-bar').style.width      = '100%';
   saveProgress();
   showScreen('screen-complete');
@@ -490,9 +490,8 @@ function loadProgress() {
       showSection(state.currentSection);
 
       if (state.paused) {
-        // Show pause overlay without restarting timer
         updatePauseClock();
-        document.getElementById('pause-overlay').classList.add('active');
+        document.getElementById('pause-overlay').style.display = 'flex';
       } else {
         startTimer();
       }

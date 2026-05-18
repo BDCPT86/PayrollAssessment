@@ -249,10 +249,11 @@ async function authFetch(url, options = {}) {
 
 // ─── UI: show / hide portal ───────────────────────────────────────────────────
 function showPortal() {
-  document.getElementById('auth-gate').style.display      = 'none';
-  document.getElementById('review-topbar').style.display  = 'flex';
-  document.getElementById('reviewer-tab-nav').style.display = 'block';
-  document.getElementById('reviewer-wrap').style.display  = 'block';
+  document.getElementById('auth-gate').style.display         = 'none';
+  document.getElementById('set-pw-gate').style.display       = 'none';
+  document.getElementById('review-topbar').style.display     = 'flex';
+  document.getElementById('reviewer-tab-nav').style.display  = 'block';
+  document.getElementById('reviewer-wrap').style.display     = 'block';
   showTab('submissions');
 }
 

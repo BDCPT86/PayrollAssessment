@@ -11,12 +11,12 @@
 <body>
 
 <!-- Pause Overlay -->
-<div class="pause-overlay" id="pause-overlay">
-  <h2>Assessment Paused</h2>
-  <p>Your progress is saved. Your timer has stopped.<br>Click Resume when you are ready to continue.</p>
-  <div class="pause-clock" id="pause-clock-display">--:--</div>
-  <div class="pause-clock-label">Time Remaining</div>
-  <div class="pause-divider"></div>
+<div id="pause-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:9999; background:rgba(13,34,64,.97); flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:24px;">
+  <h2 style="font-family:'Cormorant Garamond',Georgia,serif; font-size:36px; color:#fff; margin-bottom:8px;">Assessment Paused</h2>
+  <p style="color:rgba(255,255,255,.5); font-size:14px; max-width:340px; margin:0 auto 36px; line-height:1.6;">Your progress is saved. Your timer has stopped.<br>Click Resume when you are ready to continue.</p>
+  <div id="pause-clock-display" style="font-family:'DM Mono',monospace; font-size:60px; font-weight:500; color:#e8b84b; letter-spacing:6px; margin-bottom:8px; line-height:1;">--:--</div>
+  <div style="font-size:11px; color:rgba(255,255,255,.4); text-transform:uppercase; letter-spacing:2.5px; margin-bottom:40px;">Time Remaining</div>
+  <div style="width:48px; height:2px; background:rgba(201,153,58,.4); margin:0 auto 40px;"></div>
   <button class="btn btn-gold btn-lg" onclick="resumeTest()">&#9654; Resume Assessment</button>
 </div>
 
