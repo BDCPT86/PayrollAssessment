@@ -330,6 +330,9 @@ function renderSubmissions() {
     const pct      = Math.round((row.answered_count / row.total_questions) * 100);
     const date     = new Date(row.submitted_at).toLocaleString('en-ZA', { dateStyle: 'medium', timeStyle: 'short' });
     const initials = row.name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+    const hasReview = row.review_data?.total != null;
+    const savedTotal = row.review_data?.total ?? '—';
+    const grandMax   = SECTIONS.reduce((s, sec) => s + sec.totalMarks, 0);
 
     const card = document.createElement('div');
     card.className = 'sub-card';
@@ -343,7 +346,11 @@ function renderSubmissions() {
       <div class="sub-stat">
         <div class="sub-pct">${pct}%</div>
         <div class="sub-pct-lbl">${row.answered_count}/${row.total_questions} answered</div>
-        <div style="margin-top:6px"><span class="sub-badge new">Review →</span></div>
+        ${hasReview
+          ? `<div style="margin-top:4px;font-family:var(--font-mono);font-size:13px;color:var(--navy);font-weight:600;">${savedTotal}/${grandMax}</div>
+             <div style="margin-top:4px"><span class="sub-badge reviewed">Reviewed ✓</span></div>`
+          : `<div style="margin-top:6px"><span class="sub-badge new">Review →</span></div>`
+        }
       </div>
     `;
     card.onclick = () => openReview(row);
@@ -364,15 +371,20 @@ function openReview(submission) {
 }
 
 function backToList() {
+  clearTimeout(_saveTimer);
   document.getElementById('view-review').style.display      = 'none';
   document.getElementById('view-submissions').style.display = 'block';
   document.getElementById('btn-back').style.display         = 'none';
   document.getElementById('btn-pdf').style.display          = 'none';
   document.getElementById('review-candidate-name-top').textContent = '';
   document.getElementById('review-live-score').textContent         = '';
+  // Remove save bar so it's freshly created next time
+  document.getElementById('review-save-bar')?.remove();
 }
 
 function buildReviewPanel(sub) {
+  const saved = sub.review_data || {};
+
   document.getElementById('review-cand-info').innerHTML = `
     <div class="rcand-card"><div class="label">Candidate</div><div class="value">${esc(sub.name)}</div></div>
     <div class="rcand-card"><div class="label">Email</div><div class="value">${esc(sub.email)}</div></div>
@@ -386,17 +398,34 @@ function buildReviewPanel(sub) {
   container.innerHTML = '';
 
   SECTIONS.forEach((sec, si) => {
+    const isFirst = si === 0;
+
+    // ── Section header (clickable toggle) ──────────────────────────────────
     const hdr = document.createElement('div');
     hdr.className = 'review-section-header';
+    hdr.dataset.section = si;
     hdr.innerHTML = `
       <h3>Section ${sec.id}: ${sec.title}</h3>
-      <span class="marks-info" id="sec-hdr-marks-${si}">0 / ${sec.totalMarks} marks</span>
+      <div class="review-section-meta">
+        <span class="review-section-score-pill" id="sec-hdr-marks-${si}">
+          0 / ${sec.totalMarks}
+        </span>
+        <span class="section-toggle-icon ${isFirst ? 'open' : ''}" id="sec-toggle-icon-${si}">▼</span>
+      </div>
     `;
+    hdr.onclick = () => toggleSection(si);
     container.appendChild(hdr);
 
+    // ── Section body (collapsible) ──────────────────────────────────────────
+    const body = document.createElement('div');
+    body.className = `review-section-body ${isFirst ? 'open' : ''}`;
+    body.id = `sec-body-${si}`;
+
     sec.questions.forEach((q, qi) => {
-      const candidateAns = (sub.answers || {})[q.id] || '';
+      const candidateAns = (sub.answers  || {})[q.id] || '';
       const memoAns      = MEMO[q.id] || '(No memo answer defined)';
+      const savedScore   = (saved.scores   || {})[q.id] ?? 0;
+      const savedComment = (saved.comments || {})[q.id] || '';
 
       const card = document.createElement('div');
       card.className = 'review-q-card';
@@ -416,23 +445,68 @@ function buildReviewPanel(sub) {
         <div class="review-scoring">
           <label>Marks awarded:</label>
           <input type="number" class="score-input" id="score-${q.id}"
-            min="0" max="${q.marks}" value="0" oninput="updateScores()">
+            min="0" max="${q.marks}" value="${savedScore}"
+            oninput="onScoreInput()">
           <span class="score-max">/ ${q.marks}</span>
           <textarea class="reviewer-comment" id="comment-${q.id}"
-            placeholder="Reviewer comment…" rows="1"></textarea>
+            placeholder="Reviewer comment…" rows="1"
+            oninput="onScoreInput()">${savedComment}</textarea>
         </div>
       `;
-      container.appendChild(card);
+      body.appendChild(card);
 
       if (qi < sec.questions.length - 1) {
         const div = document.createElement('div');
         div.className = 'review-divider';
-        container.appendChild(div);
+        body.appendChild(div);
       }
     });
+
+    container.appendChild(body);
   });
 
+  // Overall notes
+  const notesWrap = document.createElement('div');
+  notesWrap.style.marginTop = '32px';
+  notesWrap.innerHTML = `
+    <div class="form-group">
+      <label>Overall Reviewer Notes</label>
+      <textarea id="reviewer-overall-notes"
+        placeholder="Overall assessment, observations, recommendation…"
+        style="min-height:120px;"
+        oninput="onScoreInput()">${esc(saved.notes || '')}</textarea>
+    </div>
+  `;
+  container.appendChild(notesWrap);
+
+  // Save bar
+  let saveBar = document.getElementById('review-save-bar');
+  if (!saveBar) {
+    saveBar = document.createElement('div');
+    saveBar.id = 'review-save-bar';
+    saveBar.className = 'save-bar';
+    saveBar.innerHTML = `
+      <div class="save-status" id="save-status">
+        <div class="dot"></div>
+        <span id="save-status-text">No unsaved changes</span>
+      </div>
+      <button class="btn btn-primary btn-sm" id="btn-save-review" onclick="saveReview()">
+        Save Review
+      </button>
+    `;
+    document.getElementById('view-review').appendChild(saveBar);
+  }
+
   updateScores();
+  setSaveStatus('idle');
+}
+
+function toggleSection(si) {
+  const body = document.getElementById(`sec-body-${si}`);
+  const icon = document.getElementById(`sec-toggle-icon-${si}`);
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  icon.classList.toggle('open', !isOpen);
 }
 
 function buildSectionScoreCards() {
@@ -469,12 +543,96 @@ function updateScores() {
     const h = document.getElementById(`sec-hdr-marks-${si}`);
     if (v) v.textContent = secTotal;
     if (b) b.style.width = Math.round((secTotal / sec.totalMarks) * 100) + '%';
-    if (h) h.textContent = `${secTotal} / ${sec.totalMarks} marks`;
+    if (h) h.textContent = `${secTotal} / ${sec.totalMarks}`;
   });
-  document.getElementById('total-score-val').textContent  = grandTotal;
-  document.getElementById('total-score-max').textContent  = grandMax;
-  document.getElementById('total-score-pct').textContent  = `${Math.round((grandTotal / grandMax) * 100)}%`;
+  document.getElementById('total-score-val').textContent   = grandTotal;
+  document.getElementById('total-score-max').textContent   = grandMax;
+  document.getElementById('total-score-pct').textContent   = `${Math.round((grandTotal / grandMax) * 100)}%`;
   document.getElementById('review-live-score').textContent = `Score: ${grandTotal} / ${grandMax}`;
+}
+
+// ─── Save status ──────────────────────────────────────────────────────────────
+function setSaveStatus(status, msg) {
+  const el   = document.getElementById('save-status');
+  const text = document.getElementById('save-status-text');
+  const btn  = document.getElementById('btn-save-review');
+  if (!el) return;
+  el.className = `save-status ${status}`;
+  const labels = {
+    idle:    'No unsaved changes',
+    unsaved: 'Unsaved changes',
+    saving:  'Saving…',
+    saved:   'All changes saved',
+    error:   msg || 'Save failed — try again',
+  };
+  if (text) text.textContent = labels[status] || '';
+  if (btn)  btn.disabled = (status === 'saving');
+}
+
+// ─── Debounced auto-save ──────────────────────────────────────────────────────
+let _saveTimer = null;
+
+function onScoreInput() {
+  updateScores();
+  setSaveStatus('unsaved');
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(() => saveReview(), 1500);
+}
+
+// ─── Save review to Supabase ──────────────────────────────────────────────────
+async function saveReview() {
+  if (!reviewer.current) return;
+  clearTimeout(_saveTimer);
+  setSaveStatus('saving');
+
+  const scores   = {};
+  const comments = {};
+  let   total    = 0;
+
+  SECTIONS.forEach(sec => {
+    sec.questions.forEach(q => {
+      const scoreEl   = document.getElementById('score-'   + q.id);
+      const commentEl = document.getElementById('comment-' + q.id);
+      const val = Math.max(0, Math.min(parseInt(scoreEl?.value) || 0, q.marks));
+      scores[q.id]   = val;
+      comments[q.id] = commentEl?.value || '';
+      total += val;
+    });
+  });
+
+  const review_data = {
+    scores,
+    comments,
+    notes:       document.getElementById('reviewer-overall-notes')?.value || '',
+    total,
+    reviewed_at: new Date().toISOString(),
+    reviewed_by: session?.email || '',
+  };
+
+  try {
+    const res = await authFetch(
+      `${CONFIG.supabaseUrl}/rest/v1/${CONFIG.supabaseTable}?id=eq.${reviewer.current.id}`,
+      {
+        method:  'PATCH',
+        headers: { 'Prefer': 'return=minimal' },
+        body:    JSON.stringify({ review_data }),
+      }
+    );
+    if (!res.ok) throw new Error(await res.text());
+
+    // Update local cache so re-opening doesn't lose data
+    reviewer.current.review_data = review_data;
+    const idx = reviewer.submissions.findIndex(s => s.id === reviewer.current.id);
+    if (idx > -1) reviewer.submissions[idx].review_data = review_data;
+
+    setSaveStatus('saved');
+    // Fade back to idle after 3s
+    setTimeout(() => setSaveStatus('idle'), 3000);
+
+  } catch (e) {
+    console.error('Save failed:', e);
+    setSaveStatus('error', `Save failed: ${e.message}`);
+  }
 }
 
 function downloadReviewPDF() {
