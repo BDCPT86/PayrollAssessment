@@ -394,8 +394,12 @@ function buildReviewPanel(sub) {
 
   buildSectionScoreCards();
 
+  // Clear questions, notes wrapper and save bar before rebuilding
+  document.getElementById('review-questions-container').innerHTML = '';
+  document.getElementById('review-notes-wrapper')?.remove();
+  document.getElementById('review-save-bar')?.remove();
+
   const container = document.getElementById('review-questions-container');
-  container.innerHTML = '';
 
   SECTIONS.forEach((sec, si) => {
     const isFirst = si === 0;
@@ -467,6 +471,7 @@ function buildReviewPanel(sub) {
 
   // Overall notes
   const notesWrap = document.createElement('div');
+  notesWrap.id = 'review-notes-wrapper';
   notesWrap.style.marginTop = '32px';
   notesWrap.innerHTML = `
     <div class="form-group">

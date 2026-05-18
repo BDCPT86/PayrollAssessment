@@ -2,18 +2,19 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --navy:    #0d2240;
-  --navy2:   #162f56;
-  --gold:    #c9993a;
-  --gold2:   #e8b84b;
-  --bg:      #f0f3f8;
+  --navy:    #1a1a1a;
+  --navy2:   #2d2d2d;
+  --gold:    #c0272d;
+  --gold2:   #e03035;
+  --bg:      #f2f2f2;
   --surface: #ffffff;
-  --border:  #dce3ee;
-  --text:    #1a2332;
-  --muted:   #5a6a82;
+  --border:  #e0e0e0;
+  --text:    #1a1a1a;
+  --muted:   #6b6b6b;
   --green:   #1d8a5e;
-  --red:     #c0392b;
-  --shadow:  0 4px 24px rgba(13,34,64,.10);
+  --red:     #c0272d;
+  --grey:    #8a8a8a;
+  --shadow:  0 4px 24px rgba(0,0,0,.10);
   --radius:  10px;
   --font-display: 'Cormorant Garamond', Georgia, serif;
   --font-body:    'DM Sans', system-ui, sans-serif;
@@ -31,19 +32,25 @@ body {
 
 /* ─── Top Bar ────────────────────────────────────────────────────────────── */
 .topbar {
-  background: var(--navy);
+  background: #111111;
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 32px;
-  height: 62px;
+  height: 64px;
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 2px 12px rgba(0,0,0,.3);
+  box-shadow: 0 2px 12px rgba(0,0,0,.4);
+  border-bottom: 3px solid var(--gold);
 }
 .topbar-brand { display: flex; align-items: center; gap: 14px; }
+.topbar-logo-img {
+  height: 36px;
+  width: auto;
+  object-fit: contain;
+}
 .topbar-logo {
   width: 36px; height: 36px;
   background: var(--gold);
@@ -51,7 +58,7 @@ body {
   display: flex; align-items: center; justify-content: center;
   font-family: var(--font-display);
   font-weight: 700; font-size: 18px;
-  color: var(--navy);
+  color: #fff;
   flex-shrink: 0;
 }
 .topbar-title {
@@ -62,15 +69,15 @@ body {
 #timer-display {
   font-family: var(--font-mono);
   font-size: 17px; font-weight: 500;
-  color: var(--gold2);
-  background: rgba(201,153,58,.12);
-  border: 1px solid rgba(201,153,58,.3);
+  color: #ff6b6b;
+  background: rgba(192,39,45,.15);
+  border: 1px solid rgba(192,39,45,.35);
   padding: 5px 14px; border-radius: 6px;
   letter-spacing: 1px;
   transition: color .3s, background .3s;
 }
 #timer-display.warning { color: #ff8c42; background: rgba(255,140,66,.12); border-color: rgba(255,140,66,.3); }
-#timer-display.danger  { color: #ff4d4d; background: rgba(255,77,77,.12);  border-color: rgba(255,77,77,.3); animation: pulse 1s infinite; }
+#timer-display.danger  { color: #ff4d4d; background: rgba(255,77,77,.15);  border-color: rgba(255,77,77,.4); animation: pulse 1s infinite; }
 
 .candidate-badge { font-size: 13px; color: rgba(255,255,255,.7); display: flex; align-items: center; gap: 6px; }
 .candidate-badge strong { color: #fff; }
@@ -86,7 +93,7 @@ body {
   padding: 0 32px;
   display: flex; gap: 0;
   overflow-x: auto; scrollbar-width: none;
-  position: sticky; top: 66px; z-index: 98;
+  position: sticky; top: 67px; z-index: 98;
 }
 .section-nav::-webkit-scrollbar { display: none; }
 .section-tab {
@@ -181,20 +188,21 @@ textarea { min-height: 110px; }
 .section-header {
   display: flex; align-items: flex-start; gap: 18px;
   margin-bottom: 28px; padding: 22px 26px;
-  background: var(--navy); color: #fff;
+  background: #111111; color: #fff;
   border-radius: var(--radius); box-shadow: var(--shadow);
+  border-left: 4px solid var(--gold);
 }
 .section-icon {
   width: 48px; height: 48px;
-  background: rgba(201,153,58,.2);
-  border: 1px solid rgba(201,153,58,.3);
+  background: rgba(192,39,45,.2);
+  border: 1px solid rgba(192,39,45,.35);
   border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
   font-family: var(--font-display); font-size: 20px; font-weight: 700;
   color: var(--gold2); flex-shrink: 0;
 }
 .section-info h2 { font-family: var(--font-display); font-size: 24px; font-weight: 600; margin-bottom: 4px; }
-.section-info p  { font-size: 13px; color: rgba(255,255,255,.65); }
+.section-info p  { font-size: 13px; color: rgba(255,255,255,.6); }
 .section-marks   { margin-left: auto; text-align: right; font-size: 12px; color: rgba(255,255,255,.6); flex-shrink: 0; }
 .section-marks .big { font-family: var(--font-display); font-size: 28px; font-weight: 700; color: var(--gold2); display: block; line-height: 1; }
 
@@ -325,10 +333,70 @@ textarea { min-height: 110px; }
 /* ─── Shared utilities ───────────────────────────────────────────────────── */
 .required-star { color: var(--red); margin-left: 2px; }
 
+/* ─── Token input hint ───────────────────────────────────────────────────── */
+.token-hint {
+  font-size: 12px; color: var(--muted);
+  margin-top: 5px; line-height: 1.5;
+}
+input[readonly] {
+  background: var(--bg);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+.email-locked-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; color: var(--green);
+  background: #f0fbf4; border: 1px solid #b3dfc3;
+  padding: 2px 8px; border-radius: 20px;
+  margin-top: 4px;
+}
+
+/* ─── Pause Overlay ──────────────────────────────────────────────────────── */
+.pause-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(13,34,64,.97);
+  z-index: 150;
+  flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center;
+  padding: 24px;
+}
+.pause-overlay.active { display: flex; }
+.pause-overlay h2 {
+  font-family: var(--font-display);
+  font-size: 36px; color: #fff;
+  margin-bottom: 8px;
+}
+.pause-overlay p {
+  color: rgba(255,255,255,.5);
+  font-size: 14px; max-width: 340px;
+  margin: 0 auto 36px; line-height: 1.6;
+}
+.pause-clock {
+  font-family: var(--font-mono);
+  font-size: 60px; font-weight: 500;
+  color: var(--gold2);
+  letter-spacing: 6px;
+  margin-bottom: 8px;
+  line-height: 1;
+}
+.pause-clock-label {
+  font-size: 11px; color: rgba(255,255,255,.4);
+  text-transform: uppercase; letter-spacing: 2.5px;
+  margin-bottom: 40px;
+}
+.pause-divider {
+  width: 48px; height: 2px;
+  background: rgba(201,153,58,.4);
+  margin: 0 auto 40px;
+}
+
 /* ─── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .topbar      { padding: 0 16px; }
   .main-wrap   { padding: 20px 16px 80px; }
   .info-grid   { grid-template-columns: 1fr 1fr; }
   .reg-meta-grid { grid-template-columns: 1fr; }
+  .pause-clock { font-size: 44px; letter-spacing: 4px; }
 }

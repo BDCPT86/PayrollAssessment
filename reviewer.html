@@ -14,7 +14,7 @@
 <!-- Auth Gate -->
 <div class="pw-gate" id="auth-gate">
   <div class="pw-box" id="auth-box">
-    <div class="logo-wrap">PA</div>
+    <div class="logo-wrap"><img src="rovic-logo.png" alt="Rovic"></div>
     <h2>Reviewer Portal</h2>
     <p>Sign in with your reviewer account to access submissions and manage invites.</p>
     <div class="form-group" style="text-align:left;">
@@ -42,7 +42,7 @@
 <!-- Set Password Gate (shown when accepting an invite or resetting password) -->
 <div class="pw-gate" id="set-pw-gate" style="display:none;">
   <div class="pw-box">
-    <div class="logo-wrap">PA</div>
+    <div class="logo-wrap"><img src="rovic-logo.png" alt="Rovic"></div>
     <h2 id="set-pw-heading">Set Your Password</h2>
     <p id="set-pw-sub">Choose a password for your reviewer account.</p>
     <div class="form-group" style="text-align:left;">
@@ -61,10 +61,11 @@
 </div>
 
 <!-- Reviewer Top Bar -->
-<div id="review-topbar" style="display:none; background:#1a0d00; color:#e8b84b; padding:12px 32px; align-items:center; justify-content:space-between; border-bottom:2px solid #c9993a; font-size:13px; font-weight:500; letter-spacing:.4px; position:sticky; top:0; z-index:100; flex-wrap:wrap; gap:8px;">
+<div id="review-topbar" style="display:none; background:#111111; color:#e03035; padding:12px 32px; align-items:center; justify-content:space-between; border-bottom:3px solid #c0272d; font-size:13px; font-weight:500; position:sticky; top:0; z-index:100; flex-wrap:wrap; gap:8px;">
   <div style="display:flex;align-items:center;gap:14px;">
+    <img src="rovic-logo.png" alt="Rovic" style="height:28px;width:auto;object-fit:contain;">
     <span class="review-tag">Reviewer</span>
-    <span id="review-candidate-name-top" style="font-size:14px;"></span>
+    <span id="review-candidate-name-top" style="font-size:14px;color:rgba(255,255,255,.7);"></span>
   </div>
   <div style="display:flex;gap:10px;align-items:center;">
     <span id="review-live-score" style="font-family:var(--font-mono);font-size:14px;"></span>
