@@ -127,7 +127,79 @@
 }
 .review-section-body.open { max-height: 99999px; }
 
-/* ─── Save status bar ────────────────────────────────────────────────────── */
+/* ─── Integrity panel ────────────────────────────────────────────────────── */
+.integrity-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 28px;
+  overflow: hidden;
+}
+.integrity-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+}
+.integrity-header h4 {
+  font-size: 14px; font-weight: 600; color: var(--navy);
+  display: flex; align-items: center; gap: 8px;
+}
+.integrity-risk {
+  font-size: 11px; font-weight: 700;
+  padding: 3px 10px; border-radius: 20px;
+  text-transform: uppercase; letter-spacing: .5px;
+}
+.integrity-risk.low    { background: #f0fbf4; color: var(--green);  border: 1px solid #b3dfc3; }
+.integrity-risk.medium { background: #fff8e1; color: #9a6800;       border: 1px solid #f0d080; }
+.integrity-risk.high   { background: #fef0f0; color: var(--red);    border: 1px solid #f0c0c0; }
+
+.integrity-body { padding: 16px 20px; }
+
+.integrity-stats {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 12px; margin-bottom: 16px;
+}
+.integrity-stat {
+  text-align: center; padding: 12px;
+  background: var(--bg); border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.integrity-stat .val {
+  font-family: var(--font-mono);
+  font-size: 22px; font-weight: 700; color: var(--navy);
+  line-height: 1;
+}
+.integrity-stat .val.flagged { color: var(--red); }
+.integrity-stat .lbl { font-size: 11px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: .4px; }
+
+.integrity-log {
+  font-size: 12px; font-family: var(--font-mono);
+  background: #f8f8f8; border: 1px solid var(--border);
+  border-radius: 6px; padding: 12px;
+  max-height: 200px; overflow-y: auto;
+  line-height: 1.8;
+}
+.integrity-log .ev-tab_hidden,
+.integrity-log .ev-window_blur  { color: #c07000; }
+.integrity-log .ev-paste         { color: var(--red); font-weight: 600; }
+.integrity-log .ev-devtools_suspected { color: var(--red); font-weight: 600; }
+.integrity-log .ev-tab_visible,
+.integrity-log .ev-window_focus,
+.integrity-log .ev-test_started { color: var(--muted); }
+
+.answer-time-fast {
+  font-size: 11px; color: var(--red);
+  font-weight: 600; margin-left: 8px;
+}
+.answer-time-normal {
+  font-size: 11px; color: var(--muted);
+  margin-left: 8px;
+}
+
+
 .save-bar {
   position: sticky; bottom: 0; left: 0; right: 0;
   background: var(--surface);

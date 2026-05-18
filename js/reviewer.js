@@ -378,12 +378,15 @@ function backToList() {
   document.getElementById('btn-pdf').style.display          = 'none';
   document.getElementById('review-candidate-name-top').textContent = '';
   document.getElementById('review-live-score').textContent         = '';
-  // Remove save bar so it's freshly created next time
   document.getElementById('review-save-bar')?.remove();
+  document.getElementById('review-notes-wrapper')?.remove();
+  document.getElementById('integrity-panel-wrap')?.remove();
 }
 
 function buildReviewPanel(sub) {
-  const saved = sub.review_data || {};
+  const saved      = sub.review_data  || {};
+  const actLog     = sub.activity_log || [];
+  const answerTimes= sub.answer_times || {};
 
   document.getElementById('review-cand-info').innerHTML = `
     <div class="rcand-card"><div class="label">Candidate</div><div class="value">${esc(sub.name)}</div></div>
@@ -394,10 +397,18 @@ function buildReviewPanel(sub) {
 
   buildSectionScoreCards();
 
-  // Clear questions, notes wrapper and save bar before rebuilding
+  // Clear everything before rebuilding
   document.getElementById('review-questions-container').innerHTML = '';
   document.getElementById('review-notes-wrapper')?.remove();
   document.getElementById('review-save-bar')?.remove();
+  document.getElementById('integrity-panel-wrap')?.remove();
+
+  // ── Integrity panel ────────────────────────────────────────────────────────
+  const integrityWrap = document.createElement('div');
+  integrityWrap.id = 'integrity-panel-wrap';
+  integrityWrap.style.marginBottom = '8px';
+  integrityWrap.innerHTML = buildIntegrityPanel(actLog, answerTimes);
+  document.getElementById('review-cand-info').insertAdjacentElement('afterend', integrityWrap);
 
   const container = document.getElementById('review-questions-container');
 
@@ -430,11 +441,16 @@ function buildReviewPanel(sub) {
       const memoAns      = MEMO[q.id] || '(No memo answer defined)';
       const savedScore   = (saved.scores   || {})[q.id] ?? 0;
       const savedComment = (saved.comments || {})[q.id] || '';
+      const answerSecs   = answerTimes[q.id];
+      const timeLabel    = answerSecs != null ? formatAnswerTime(answerSecs, q.marks) : '';
 
       const card = document.createElement('div');
       card.className = 'review-q-card';
       card.innerHTML = `
-        <div class="review-q-text">Q${q.num}: ${q.text}${q.sub ? ' ' + q.sub : ''}</div>
+        <div class="review-q-text">
+          Q${q.num}: ${q.text}${q.sub ? ' ' + q.sub : ''}
+          ${timeLabel}
+        </div>
         ${q.context ? `<div class="q-context-box" style="margin-bottom:10px;font-size:13px;">${q.context}</div>` : ''}
         <div class="review-columns">
           <div class="review-answer-box answer-candidate">
@@ -556,7 +572,103 @@ function updateScores() {
   document.getElementById('review-live-score').textContent = `Score: ${grandTotal} / ${grandMax}`;
 }
 
-// ─── Save status ──────────────────────────────────────────────────────────────
+// ─── Integrity panel ──────────────────────────────────────────────────────────
+function buildIntegrityPanel(log, answerTimes) {
+  const tabSwitches  = log.filter(e => e.type === 'tab_hidden').length;
+  const pasteEvents  = log.filter(e => e.type === 'paste').length;
+  const devTools     = log.filter(e => e.type === 'devtools_suspected').length;
+  const windowBlurs  = log.filter(e => e.type === 'window_blur').length;
+
+  // Risk score: weighted sum
+  const riskScore = (tabSwitches * 2) + (pasteEvents * 4) + (devTools * 5) + (windowBlurs * 1);
+  const riskLevel = riskScore === 0 ? 'low' : riskScore <= 6 ? 'medium' : 'high';
+  const riskLabel = riskLevel === 'low' ? 'Low Risk' : riskLevel === 'medium' ? 'Medium Risk' : 'High Risk';
+
+  // Fast answers: flagged if answered in < 45s per mark
+  const fastAnswers = Object.entries(answerTimes).filter(([qId, secs]) => {
+    const q = SECTIONS.flatMap(s => s.questions).find(q => q.id === qId);
+    return q && secs < (q.marks * 45);
+  }).length;
+
+  // Build event log HTML
+  const eventLabels = {
+    test_started:       '▶ Test started',
+    tab_hidden:         '⚠ Left tab',
+    tab_visible:        '↩ Returned to tab',
+    window_blur:        '⚠ Window lost focus',
+    window_focus:       '↩ Window regained focus',
+    paste:              '⚡ Pasted into',
+    devtools_suspected: '🔍 DevTools suspected',
+  };
+
+  const logHTML = log.length
+    ? log.map(e => {
+        const mins = Math.floor(e.t / 60);
+        const secs = e.t % 60;
+        const time = `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+        const label = eventLabels[e.type] || e.type;
+        const detail = e.question ? ` Q${SECTIONS.flatMap(s=>s.questions).find(q=>q.id===e.question)?.num || e.question}` : '';
+        return `<div class="ev-${e.type}">[${time}] ${label}${detail}</div>`;
+      }).join('')
+    : '<div style="color:var(--muted)">No events recorded.</div>';
+
+  return `
+    <div class="integrity-panel">
+      <div class="integrity-header" onclick="toggleIntegrity()">
+        <h4>🛡 Assessment Integrity <span style="font-size:12px;font-weight:400;color:var(--muted);">(click to expand)</span></h4>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="integrity-risk ${riskLevel}">${riskLabel}</span>
+          <span id="integrity-chevron" style="font-size:12px;color:var(--muted);">▼</span>
+        </div>
+      </div>
+      <div id="integrity-body" class="integrity-body" style="display:none;">
+        <div class="integrity-stats">
+          <div class="integrity-stat">
+            <div class="val ${tabSwitches > 0 ? 'flagged' : ''}">${tabSwitches}</div>
+            <div class="lbl">Tab Switches</div>
+          </div>
+          <div class="integrity-stat">
+            <div class="val ${pasteEvents > 0 ? 'flagged' : ''}">${pasteEvents}</div>
+            <div class="lbl">Paste Events</div>
+          </div>
+          <div class="integrity-stat">
+            <div class="val ${fastAnswers > 0 ? 'flagged' : ''}">${fastAnswers}</div>
+            <div class="lbl">Fast Answers</div>
+          </div>
+          <div class="integrity-stat">
+            <div class="val ${devTools > 0 ? 'flagged' : ''}">${devTools}</div>
+            <div class="lbl">DevTools Flags</div>
+          </div>
+        </div>
+        <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Event Log</div>
+        <div class="integrity-log">${logHTML}</div>
+        <p style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.6;">
+          These signals are indicators only — not proof of misconduct. Tab switches may indicate AI use, external research, or simply checking the time. Use alongside answer quality when making a judgement.
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+function toggleIntegrity() {
+  const body    = document.getElementById('integrity-body');
+  const chevron = document.getElementById('integrity-chevron');
+  const isOpen  = body.style.display !== 'none';
+  body.style.display    = isOpen ? 'none' : 'block';
+  chevron.textContent   = isOpen ? '▼' : '▲';
+}
+
+function formatAnswerTime(secs, marks) {
+  const mins = Math.floor(secs / 60);
+  const s    = secs % 60;
+  const timeStr = mins > 0 ? `${mins}m ${s}s` : `${s}s`;
+  const isFast  = secs < (marks * 45);
+  return isFast
+    ? `<span class="answer-time-fast" title="Answered quickly — may warrant review">⚡ ${timeStr} after start</span>`
+    : `<span class="answer-time-normal">⏱ ${timeStr} after start</span>`;
+}
+
+
 function setSaveStatus(status, msg) {
   const el   = document.getElementById('save-status');
   const text = document.getElementById('save-status-text');

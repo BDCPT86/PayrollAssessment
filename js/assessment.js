@@ -7,9 +7,53 @@ const state = {
   timeRemaining:   CONFIG.timerMinutes * 60,
   submitted:       false,
   submissionId:    null,
-  token:           null,   // validated invite token
+  token:           null,
   paused:          false,
+  activityLog:     [],   // integrity tracking events
+  answerStartTimes:{},   // when candidate first typed in each answer
 };
+
+// ─── Activity logging ─────────────────────────────────────────────────────────
+function logEvent(type, detail = {}) {
+  if (state.submitted) return;
+  state.activityLog.push({
+    type,
+    t: Math.round((CONFIG.timerMinutes * 60 - state.timeRemaining)),  // seconds elapsed
+    ts: new Date().toISOString(),
+    ...detail,
+  });
+}
+
+function initActivityTracking() {
+  // Tab / window focus loss
+  document.addEventListener('visibilitychange', () => {
+    if (state.submitted || !state.candidate?.name) return;
+    logEvent(document.hidden ? 'tab_hidden' : 'tab_visible');
+  });
+
+  window.addEventListener('blur',  () => { if (!state.submitted && state.candidate?.name) logEvent('window_blur');  });
+  window.addEventListener('focus', () => { if (!state.submitted && state.candidate?.name) logEvent('window_focus'); });
+
+  // Right-click disabled during test
+  document.addEventListener('contextmenu', e => {
+    if (state.candidate?.name && !state.submitted) e.preventDefault();
+  });
+
+  // DevTools open heuristic — size change
+  let _devToolsTimer = null;
+  const _threshold = 160;
+  window.addEventListener('resize', () => {
+    if (!state.candidate?.name || state.submitted) return;
+    clearTimeout(_devToolsTimer);
+    _devToolsTimer = setTimeout(() => {
+      const widthDiff  = window.outerWidth  - window.innerWidth;
+      const heightDiff = window.outerHeight - window.innerHeight;
+      if (widthDiff > _threshold || heightDiff > _threshold) {
+        logEvent('devtools_suspected');
+      }
+    }, 500);
+  });
+}
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -166,6 +210,8 @@ async function startTest() {
   document.getElementById('section-nav').style.display    = 'flex';
 
   startTimer();
+  initActivityTracking();
+  logEvent('test_started');
   showSection(0);
   saveProgress();
   showToast('Assessment started — good luck!', 'success');
@@ -268,6 +314,9 @@ function showSection(idx) {
       </div>
     `;
     wrap.appendChild(card);
+    // Attach paste + focus tracking after card is in DOM
+    const ta = document.getElementById('ans-' + q.id);
+    if (ta) attachPasteDetection(q.id, ta);
   });
 
   const isFirst   = idx === 0;
@@ -295,9 +344,24 @@ function showSection(idx) {
 function goSection(idx) { saveAllAnswers(); showSection(idx); }
 
 function saveAnswer(id, val) {
+  // Track when they first started typing an answer
+  if (val.trim() && !state.answerStartTimes[id]) {
+    state.answerStartTimes[id] = Math.round(CONFIG.timerMinutes * 60 - state.timeRemaining);
+  }
   state.answers[id] = val;
   document.getElementById('card-' + id)?.classList.toggle('answered', val.trim().length > 0);
   saveProgress();
+}
+
+function attachPasteDetection(qId, el) {
+  el.addEventListener('paste', () => {
+    logEvent('paste', { question: qId });
+  });
+  el.addEventListener('focus', () => {
+    if (!state.answerStartTimes[qId]) {
+      state.answerStartTimes[qId] = Math.round(CONFIG.timerMinutes * 60 - state.timeRemaining);
+    }
+  });
 }
 
 function saveAllAnswers() {
@@ -370,6 +434,8 @@ async function saveToSupabase() {
     answers:         state.answers,
     answered_count:  answered,
     total_questions: total,
+    activity_log:    state.activityLog,
+    answer_times:    state.answerStartTimes,
   };
 
   try {
