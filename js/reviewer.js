@@ -327,21 +327,28 @@ function renderSubmissions() {
   const list = document.getElementById('submissions-list');
   list.innerHTML = '';
   reviewer.submissions.forEach(row => {
-    const pct      = Math.round((row.answered_count / row.total_questions) * 100);
-    const date     = new Date(row.submitted_at).toLocaleString('en-ZA', { dateStyle: 'medium', timeStyle: 'short' });
-    const initials = row.name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
-    const hasReview = row.review_data?.total != null;
+    const pct        = Math.round((row.answered_count / row.total_questions) * 100);
+    const date       = new Date(row.submitted_at).toLocaleString('en-ZA', { dateStyle: 'medium', timeStyle: 'short' });
+    const initials   = row.name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+    const hasReview  = row.review_data?.total != null;
     const savedTotal = row.review_data?.total ?? '—';
     const grandMax   = SECTIONS.reduce((s, sec) => s + sec.totalMarks, 0);
+    const isComplete = row.completed !== false; // treat null/undefined as complete for old records
 
     const card = document.createElement('div');
     card.className = 'sub-card';
+    card.style.opacity = isComplete ? '1' : '0.75';
     card.innerHTML = `
-      <div class="sub-avatar">${initials}</div>
+      <div class="sub-avatar" style="${!isComplete ? 'background:var(--muted)' : ''}">${initials}</div>
       <div class="sub-info">
-        <div class="sub-name">${esc(row.name)}</div>
+        <div class="sub-name">${esc(row.name)}
+          ${!isComplete ? '<span style="font-size:11px;font-weight:500;color:var(--muted);margin-left:8px;">In progress</span>' : ''}
+        </div>
         <div class="sub-meta">${esc(row.email)}${row.position ? ' · ' + esc(row.position) : ''}${row.employer ? ' · ' + esc(row.employer) : ''}</div>
-        <div class="sub-meta" style="margin-top:3px;">Submitted: ${date}</div>
+        <div class="sub-meta" style="margin-top:3px;">
+          ${isComplete ? 'Submitted' : 'Last saved'}: ${date}
+          ${!isComplete ? ` · Section ${(row.last_section || 0) + 1} of ${SECTIONS.length}` : ''}
+        </div>
       </div>
       <div class="sub-stat">
         <div class="sub-pct">${pct}%</div>
@@ -349,7 +356,9 @@ function renderSubmissions() {
         ${hasReview
           ? `<div style="margin-top:4px;font-family:var(--font-mono);font-size:13px;color:var(--navy);font-weight:600;">${savedTotal}/${grandMax}</div>
              <div style="margin-top:4px"><span class="sub-badge reviewed">Reviewed ✓</span></div>`
-          : `<div style="margin-top:6px"><span class="sub-badge new">Review →</span></div>`
+          : isComplete
+            ? `<div style="margin-top:6px"><span class="sub-badge new">Review →</span></div>`
+            : `<div style="margin-top:6px"><span class="sub-badge" style="background:#f5f5f5;color:var(--muted);border:1px solid var(--border);">Incomplete</span></div>`
         }
       </div>
     `;
@@ -899,7 +908,127 @@ function buildInviteUrl(token) {
   return window.location.href.replace(/reviewer\.html.*$/, '') + `index.html?token=${token}`;
 }
 
-// ─── Utilities ────────────────────────────────────────────────────────────────
+// ─── Import failed submission ─────────────────────────────────────────────────
+let _importPayload = null;
+
+function handleImportFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      _importPayload = JSON.parse(e.target.result);
+      setImportStatus(`File loaded: ${_importPayload.name} (${_importPayload.answered_count}/${_importPayload.total_questions} answered)`, 'success');
+      document.getElementById('import-code-input').value = '';
+    } catch {
+      setImportStatus('Could not read file — make sure it is the JSON export file from the candidate.', 'error');
+      _importPayload = null;
+    }
+  };
+  reader.readAsText(file);
+}
+
+async function importSubmission() {
+  // Prefer file payload; fall back to export code
+  if (!_importPayload) {
+    const code = document.getElementById('import-code-input').value.trim().replace(/\s+/g, '');
+    if (!code) {
+      setImportStatus('Please upload a JSON file or paste an export code first.', 'error');
+      return;
+    }
+    try {
+      _importPayload = JSON.parse(atob(code));
+    } catch {
+      setImportStatus('Invalid export code — please check it was copied in full.', 'error');
+      return;
+    }
+  }
+
+  // Validate required fields
+  if (!_importPayload.name || !_importPayload.email || !_importPayload.answers) {
+    setImportStatus('Export data is incomplete or corrupted.', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btn-import');
+  btn.textContent = 'Saving…'; btn.disabled = true;
+  setImportStatus('Saving to database…', 'info');
+
+  try {
+    // Check for duplicate before inserting
+    const checkRes = await authFetch(
+      `${CONFIG.supabaseUrl}/rest/v1/${CONFIG.supabaseTable}?email=eq.${encodeURIComponent(_importPayload.email)}&select=id&limit=1`
+    );
+    if (checkRes.ok) {
+      const existing = await checkRes.json();
+      if (existing.length > 0) {
+        if (!confirm(`A submission already exists for ${_importPayload.email}. Import anyway as a duplicate?`)) {
+          btn.textContent = 'Import & Save'; btn.disabled = false;
+          setImportStatus('Import cancelled.', 'info');
+          return;
+        }
+      }
+    }
+
+    const payload = {
+      name:            _importPayload.name,
+      email:           _importPayload.email,
+      position:        _importPayload.position        || null,
+      employer:        _importPayload.employer        || null,
+      answers:         _importPayload.answers         || {},
+      answered_count:  _importPayload.answered_count  || 0,
+      total_questions: _importPayload.total_questions || 23,
+      activity_log:    _importPayload.activity_log    || [],
+      answer_times:    _importPayload.answer_times    || {},
+    };
+
+    const res = await authFetch(
+      `${CONFIG.supabaseUrl}/rest/v1/${CONFIG.supabaseTable}`,
+      {
+        method:  'POST',
+        headers: { 'Prefer': 'return=representation' },
+        body:    JSON.stringify(payload),
+      }
+    );
+
+    if (!res.ok) throw new Error(await res.text());
+
+    setImportStatus(`✓ Submission imported successfully for ${_importPayload.name}.`, 'success');
+    showToast(`Imported submission for ${_importPayload.name}.`, 'success');
+    _importPayload = null;
+    document.getElementById('import-file-input').value = '';
+    document.getElementById('import-code-input').value = '';
+
+    // Refresh submissions list
+    loadSubmissions();
+    setTimeout(() => showTab('submissions'), 1500);
+
+  } catch (e) {
+    setImportStatus(`Import failed: ${e.message}`, 'error');
+    showToast('Import failed — see error above.', 'error');
+  }
+
+  btn.textContent = 'Import & Save'; btn.disabled = false;
+}
+
+function setImportStatus(msg, type) {
+  const el = document.getElementById('import-status');
+  el.textContent  = msg;
+  el.style.display = 'block';
+  const styles = {
+    success: { bg: '#f0fbf4', border: '#b3dfc3', color: '#1d6b45' },
+    error:   { bg: '#fef0f0', border: '#f0c0c0', color: '#a03030' },
+    info:    { bg: '#f0f4fb', border: '#c8d6ec', color: '#3a5f9e' },
+  };
+  const s = styles[type] || styles.info;
+  el.style.background   = s.bg;
+  el.style.border       = `1px solid ${s.border}`;
+  el.style.color        = s.color;
+  el.style.borderRadius = '7px';
+  el.style.padding      = '10px 14px';
+}
+
+
 function esc(str) {
   return String(str || '')
     .replace(/&/g,'&amp;').replace(/</g,'&lt;')

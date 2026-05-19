@@ -175,8 +175,33 @@
       </div>
     </div>
 
-    <div class="sub-list-header" style="margin-bottom:16px;">
-      <div><h2 style="font-size:20px;">All Invites</h2></div>
+    <!-- Import failed submission -->
+    <div class="invite-create-card" style="margin-top:32px;border-color:#c0272d;">
+      <h3 style="color:#c0272d;">⚠ Import Failed Submission</h3>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6;">
+        Use this if a candidate's submission failed and they emailed you their export file or export code.
+        This will save their answers directly to Supabase as if they submitted normally.
+      </p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+        <div class="form-group" style="margin-bottom:0;flex:1;min-width:200px;">
+          <label>Import JSON export file</label>
+          <input type="file" id="import-file-input" accept=".json"
+            style="padding:8px;font-size:13px;"
+            onchange="handleImportFile(this)">
+        </div>
+        <div style="display:flex;align-items:center;padding-bottom:4px;color:var(--muted);font-size:13px;">or</div>
+        <div class="form-group" style="margin-bottom:0;flex:2;min-width:200px;">
+          <label>Paste export code</label>
+          <input type="text" id="import-code-input" placeholder="Paste the export code from the candidate's email…"
+            style="font-family:var(--font-mono);font-size:12px;">
+        </div>
+        <button class="btn btn-primary" onclick="importSubmission()" id="btn-import"
+          style="white-space:nowrap;align-self:flex-end;background:#c0272d;border-color:#c0272d;">
+          Import &amp; Save
+        </button>
+      </div>
+      <div id="import-status" style="margin-top:12px;font-size:13px;display:none;padding:10px 14px;border-radius:7px;"></div>
+    </div>
       <div style="display:flex;gap:10px;align-items:center;">
         <span class="sub-count-badge" id="invite-count"></span>
         <button class="btn btn-outline btn-sm" onclick="loadInvites()">&#8635; Refresh</button>
