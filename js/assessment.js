@@ -481,6 +481,7 @@ function showCompleteSuccess() {
   document.getElementById('complete-heading').textContent   = 'Submitted Successfully';
   document.getElementById('complete-sub').textContent       = `Thank you, ${state.candidate.name}. Your assessment has been received.`;
   document.getElementById('saving-spinner').style.display   = 'none';
+  document.getElementById('btn-retry').style.display        = 'none';
   document.getElementById('complete-actions').style.display = 'flex';
   showToast('Assessment submitted successfully!', 'success');
 }
@@ -489,10 +490,32 @@ function showCompleteFallback() {
   document.getElementById('complete-icon').textContent      = '⚠';
   document.getElementById('complete-icon').style.background = 'linear-gradient(135deg,#c0392b,#e74c3c)';
   document.getElementById('complete-heading').textContent   = 'Submission Error';
-  document.getElementById('complete-sub').textContent       = 'Could not reach the database. Please download your answer sheet and contact the company.';
+  document.getElementById('complete-sub').textContent       = 'Could not reach the database. Please try again, or download your answer sheet and contact the company.';
   document.getElementById('saving-spinner').style.display   = 'none';
+  document.getElementById('btn-retry').style.display        = 'inline-flex';
   document.getElementById('complete-actions').style.display = 'flex';
-  showToast('Save failed. Please download your PDF.', 'error');
+  showToast('Save failed. Please try again.', 'error');
+}
+
+async function retrySubmit() {
+  const btn = document.getElementById('btn-retry');
+  btn.textContent = '⏳ Retrying…';
+  btn.disabled = true;
+
+  // Reset steps
+  document.getElementById('complete-icon').textContent      = '⏳';
+  document.getElementById('complete-icon').style.background = 'linear-gradient(135deg,#c9993a,#e8b84b)';
+  document.getElementById('complete-heading').textContent   = 'Saving your assessment…';
+  document.getElementById('complete-sub').textContent       = 'Please wait while your responses are being submitted.';
+  document.getElementById('saving-spinner').style.display   = 'flex';
+  document.getElementById('complete-actions').style.display = 'none';
+  setCompletionStep('step-save',    'active', 'Retrying…');
+  setCompletionStep('step-confirm', '',       'Waiting…');
+
+  await saveToSupabase();
+
+  btn.textContent = '↻ Try Again';
+  btn.disabled = false;
 }
 
 function downloadMyPDF() {
